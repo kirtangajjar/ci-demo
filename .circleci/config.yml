@@ -2,94 +2,26 @@
 #
 # Check https://circleci.com/docs/2.0/language-php/ for more details
 #
-version: 2
-jobs:
-  build:
-    docker: # use the docker executor type; machine and macos executors are also supported
-      # specify the version you desire here
-      - image: vaishu27/ci-deployer-wp:v0.2.0
-    steps:
-      - checkout # check out the code in the project directory
-      - restore_cache: # Caches dependencies with a cache key
-          # template for an environment variable,
-          # see circleci.com/docs/2.0/caching/
-          key: v1-repo-{{ .Environment.CIRCLE_SHA1 }}
-          paths:
-            - vendor
-            - ~/.composer/cache
-      - save_cache: # Caches dependencies with a cache key
-          # template for an environment variable,
-          # see circleci.com/docs/2.0/caching/
-          key: v1-repo-{{ .Environment.CIRCLE_SHA1 }}
-          paths:
-            - vendor
-            - ~/.composer/cache
-      - run:
-          name: PHPCS
-          command: |
-            echo Running phpcs script
-            source ./.circleci/setup-phpcs.sh
-            lint_php_files
-  deploy:
-    docker: # use the docker executor type; machine and macos executors are also supported
-          # specify the version you desire here
-          - image: vaishu27/ci-deployer-wp:v0.2.0
-          - image: mysql:5.7
-            command: mysqld --character-set-server=utf8mb4 --collation-server=utf8mb4_bin --innodb-large-prefix=true --innodb-file-format=Barracuda
-            environment:
-                MYSQL_USER: root
-                MYSQL_ROOT_PASSWORD: root
-                MYSQL_HOST: 127.0.0.1
-                MYSQL_DATABASE: wp
-    steps:
-      - checkout # check out the code in the project directory
-      - restore_cache: # Caches dependencies with a cache key
-          # template for an environment variable,
-          # see circleci.com/docs/2.0/caching/
-          key: v1-repo-{{ .Environment.CIRCLE_SHA1 }}
-          paths:
-            - vendor
-            - ~/.composer/cache
-      - save_cache: # Caches dependencies with a cache key
-          # template for an environment variable,
-          # see circleci.com/docs/2.0/caching/
-          key: v1-repo-{{ .Environment.CIRCLE_SHA1 }}
-          paths:
-            - vendor
-            - ~/.composer/cache
-      - add_ssh_keys:
-          fingerprints:
-            - php -f ./.circleci/setup-ssh.php
-      - run:
-          name: SSH Key setup
-          command: echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config
-      - run:
-          name: install dockerize
-          command: wget https://github.com/jwilder/dockerize/releases/download/$DOCKERIZE_VERSION/dockerize-linux-amd64-$DOCKERIZE_VERSION.tar.gz && tar -C /usr/local/bin -xzvf dockerize-linux-amd64-$DOCKERIZE_VERSION.tar.gz && rm dockerize-linux-amd64-$DOCKERIZE_VERSION.tar.gz
-          environment:
-            DOCKERIZE_VERSION: v0.3.0
-      - run:
-          name: Deploy
-          command: |
-            composer install --no-dev
-            composer require vlucas/phpdotenv --dev
-            export PATH="$PATH:$COMPOSER_HOME/vendor/bin"
-            export PROJECT_ROOT="$(pwd)"
-            source ./.circleci/install_test_wp.sh
-            mv ./.circleci/deploy.php deploy.php
-            if [[ -z ${IS_VIP+x} ]]; then echo 'Non VIP'; else if [[ "$IS_VIP"=="yes" ]]; then source ./.circleci/install_mu_plugins.sh; fi; fi
-            export build_root
-            dep deploy $CIRCLE_BRANCH
+version: 2.1
+
+orbs:
+  rtcamp: kirtangajjar/default-config@dev:0.0.1
+
 workflows:
     version: 2
     build_and_deploy:
        jobs:
-         - build
-         - deploy:
-            requires:
-              - build
-            filters:
-              branches:
-                only:
-                  - develop
-                  - master
+       - rtcamp/build:
+          filters:
+             branches:
+               only:
+               - develop
+               - master
+       - rtcamp/deploy:
+          context: org-global
+          server: dev5
+          filters:
+            branches:
+              only:
+              - develop
+              - master

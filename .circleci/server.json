@@ -1,0 +1,8 @@
+{
+    "develop": {
+      "server": "dev5-rt-gw.do.rstuff.in",
+      "user": "root",
+      "path": "~/ci-demo",
+      "fingerprint": "59:by:d9:38:83:9d:h9:d7:6a:3h"
+    }
+  }
